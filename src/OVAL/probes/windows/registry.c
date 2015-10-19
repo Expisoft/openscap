@@ -60,20 +60,6 @@
 
 oval_schema_version_t over;
 
-void extra_debug(const char* fmt,...) {
-	FILE*	f;
-	va_list args;
-  
-	va_start (args, fmt);
-
-	f = fopen("c:\\temp\\trace.sg","a");
-	if (f) {
-		vfprintf(f,fmt,args);
-		fflush(f);
-		fclose(f);
-	}
-}
-
 // FROM filehash.c
 static int mem2hex (uint8_t *mem, size_t mlen, char *str, size_t slen)
 {
@@ -121,13 +107,11 @@ int probe_main(probe_ctx *ctx, void *arg)
 
 	ent = probe_obj_getent(probe_in, "hive", 1);
 	if (ent == NULL) {
-		extra_debug("Registry:Error Failed to find hive\n");
 		return (PROBE_ENOENT);
 	}
 
     val = probe_ent_getval(ent);
     if (val == NULL) {
-		extra_debug("Registry:Error Failed to find hive\n");
         dI("%s: no value\n", "hive");
         SEXP_free(ent);
         return (PROBE_ENOVAL);
@@ -139,14 +123,12 @@ int probe_main(probe_ctx *ctx, void *arg)
 
 	ent = probe_obj_getent(probe_in, "key", 1);
 	if (ent == NULL) {
-		extra_debug("Registry:Error Failed to find key\n");
 		oscap_free(hive);
 		return (PROBE_ENOENT);
 	}
 
     val = probe_ent_getval(ent);
     if (val == NULL) {
-		extra_debug("Registry:Error Failed to find key\n");
         dI("%s: no value\n", "key");
         SEXP_free(ent);
 		oscap_free(hive);
@@ -159,7 +141,6 @@ int probe_main(probe_ctx *ctx, void *arg)
 
 	ent = probe_obj_getent(probe_in, "name", 1);
 	if (ent == NULL) {
-		extra_debug("Registry:Error Failed to find name\n");
 		oscap_free(hive);
 		oscap_free(key);
 		return (PROBE_ENOENT);
@@ -185,7 +166,6 @@ int probe_main(probe_ctx *ctx, void *arg)
 	} else if (strcasecmp(hive,"HKEY_USERS")==0) {
 		hHive = HKEY_USERS;
 	} else {
-		extra_debug("Registry:Bad hive %s\n",hive);
 		oscap_free(hive);
 		oscap_free(key);
 		oscap_free(name);
@@ -212,7 +192,6 @@ int probe_main(probe_ctx *ctx, void *arg)
 
 			lStatus = RegQueryValueEx(hKey,name,NULL,&type,data,&len);
 			if (lStatus != 0) {
-				extra_debug("Registry:Failed to query registry value %s\\%s %s\n",hive,key,name);
 				oscap_free(hive);
 				oscap_free(key);
 				oscap_free(name);
@@ -220,8 +199,6 @@ int probe_main(probe_ctx *ctx, void *arg)
 			}
 		}
 	}
-
-	extra_debug("Registry:Read %s %s %s type %d\n",hive,key,name,type);
 
 	switch(type) {
 	case REG_SZ:
@@ -262,7 +239,6 @@ int probe_main(probe_ctx *ctx, void *arg)
 			NULL);
 		break;
 	default:
-		extra_debug("Registry:NYI type %d in query of registry value %s\\%s %s\n",type,hive,key,name);
 		free(data);
 		oscap_free(hive);
 		oscap_free(key);
