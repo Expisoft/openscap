@@ -33,7 +33,7 @@
 #include <pthread.h>
 
 // TODO: Maybe there is a better macro to check here
-#ifdef __APPLE__
+#if		1	// def __APPLE__
 
 // returned to the last thread that hits the trip count
 #define PTHREAD_BARRIER_SERIAL_THREAD -1
