@@ -52,6 +52,9 @@
 # include <sys/param.h>
 # include <sys/ucred.h>
 # include <sys/mount.h>
+#elif defined(_WIN32) || defined(__CYGWIN__)
+# include <mntent.h>
+# include <sys/unistd.h>
 #else
 # error "Sorry, your OS isn't supported."
 #endif
@@ -302,6 +305,100 @@ static fsdev_t *__fsdev_init(fsdev_t * lfs, const char **fs, size_t fs_cnt)
 
 	return (lfs);
 }
+#elif defined(_WIN32) || defined(__CYGWIN__)
+
+#define DEVID_ARRAY_SIZE 16
+#define DEVID_ARRAY_ADD  8
+
+static int
+is_local_fs(struct mntent *ment)
+{
+// todo: would it be usefull to provide the choice during build-time?
+#if 1
+	char *s;
+
+	s = ment->mnt_fsname;
+	/* If the fsname begins with "//", it is probably CIFS. */
+	if (s[0] == '/' && s[1] == '/')
+		return 0;
+
+	/* If there's a ':' in the fsname and it occurs before any
+	 * '/', then this is probably NFS and the file system is
+	 * considered "remote".
+	 */
+	s = strpbrk(s, "/:");
+	if (s && *s == ':')
+		return 0;
+
+	return 1;
+#else
+	struct stat st;
+
+	/* If the file system is not backed-up by a real file, it is
+	   considered remote. A notable exception is "tmpfs" to allow
+	   traversal of /tmp et al. */
+	if (strcmp(ment->mnt_fsname, "tmpfs") != 0
+	    && (stat(ment->mnt_fsname, &st) != 0
+		|| !(S_ISBLK(st.st_mode))))
+		return 0;
+	else
+		return 1;
+#endif
+}
+
+static fsdev_t *__fsdev_init(fsdev_t * lfs, const char **fs, size_t fs_cnt)
+{
+	int e;
+	FILE *fp;
+	size_t i;
+
+	struct mntent *ment;
+	struct stat st;
+
+	fp = setmntent(_PATH_MOUNTED, "r");
+	if (fp == NULL) {
+		e = errno;
+		free(lfs);
+		errno = e;
+		return (NULL);
+	}
+
+	lfs->ids = malloc(sizeof(dev_t) * DEVID_ARRAY_SIZE);
+
+	if (lfs->ids == NULL) {
+		e = errno;
+		free(lfs);
+		errno = e;
+		return (NULL);
+	}
+
+	lfs->cnt = DEVID_ARRAY_SIZE;
+	i = 0;
+
+	while ((ment = getmntent(fp)) != NULL) {
+		if (fs == NULL) {
+			if (!is_local_fs(ment))
+				continue;
+		} else if (!match_fs(ment->mnt_type, fs, fs_cnt)) {
+				continue;
+		}
+		if (stat(ment->mnt_dir, &st) != 0)
+			continue;
+		if (i >= lfs->cnt) {
+			lfs->cnt += DEVID_ARRAY_ADD;
+			lfs->ids = realloc(lfs->ids, sizeof(dev_t) * lfs->cnt);
+		}
+		memcpy(&(lfs->ids[i++]), &st.st_dev, sizeof(dev_t));
+	}
+
+	fclose(fp);
+
+	lfs->ids = realloc(lfs->ids, sizeof(dev_t) * i);
+	lfs->cnt = (lfs->ids == NULL ? 0 : i);
+
+	return (lfs);
+}
+
 #endif
 
 fsdev_t *fsdev_init(const char **fs, size_t fs_cnt)

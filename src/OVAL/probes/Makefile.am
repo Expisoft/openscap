@@ -303,3 +303,12 @@ endif
 
 endif
 endif
+
+if WANT_PROBES_WINDOWS
+
+if probe_registry_enabled
+pkglibexec_PROGRAMS += probe_registry
+probe_registry_SOURCES= windows/registry.c
+endif
+
+endif

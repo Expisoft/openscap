@@ -33,7 +33,7 @@
 #include <pthread.h>
 
 // TODO: Maybe there is a better macro to check here
-#if		1	// def __APPLE__
+#if		defined(__APPLE__) || defined(__CYGWIN__)
 
 // returned to the last thread that hits the trip count
 #define PTHREAD_BARRIER_SERIAL_THREAD -1
@@ -52,6 +52,12 @@ typedef struct
 int pthread_barrier_init(pthread_barrier_t *barrier, const pthread_barrierattr_t *attr, unsigned int count);
 int pthread_barrier_destroy(pthread_barrier_t *barrier);
 int pthread_barrier_wait(pthread_barrier_t *barrier);
+
+#endif
+
+#if defined(__CYGWIN__)
+
+int pthread_setname_np(pthread_t thread, const char *name);
 
 #endif
 

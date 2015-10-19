@@ -68,7 +68,7 @@ int probe_main(probe_ctx *ctx, void *arg)
         (void)arg;
 
 	const char *family =
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__CYGWIN__)
         "windows";
 #elif defined(Macintosh) || defined(macintosh) || (defined(__APPLE__) && defined(__MACH__))
         "macos";

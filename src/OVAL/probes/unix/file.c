@@ -78,7 +78,7 @@
 # else
 #  define OS_SUNOS
 # endif
-#elif defined(_WIN32)
+#elif defined(_WIN32) || defined(__CYGWIN__)
 # define OS_WINDOWS
 #else
 # error "Sorry, your OS isn't supported."
@@ -177,7 +177,7 @@ static SEXP_t *get_atime(struct stat *st, SEXP_t *sexp)
 # else
 		(uint64_t) st->st_atimespec.tv_sec
 # endif
-#elif defined(OS_LINUX) || defined(OS_SOLARIS)
+#elif defined(OS_LINUX) || defined(OS_SOLARIS) || defined(OS_WINDOWS)
 		(uint64_t) st->st_atim.tv_sec
 #endif
 		);
@@ -198,7 +198,7 @@ static SEXP_t *get_ctime(struct stat *st, SEXP_t *sexp)
 # else
 		(uint64_t) st->st_ctimespec.tv_sec
 # endif
-#elif defined(OS_LINUX) || defined(OS_SOLARIS)
+#elif defined(OS_LINUX) || defined(OS_SOLARIS) || defined(OS_WINDOWS)
 		(uint64_t) st->st_ctim.tv_sec
 #endif
 		);
@@ -219,7 +219,7 @@ static SEXP_t *get_mtime(struct stat *st, SEXP_t *sexp)
 # else
 		(uint64_t) st->st_mtimespec.tv_sec
 # endif
-#elif defined(OS_LINUX) || defined(OS_SOLARIS)
+#elif defined(OS_LINUX) || defined(OS_SOLARIS) || defined(OS_WINDOWS)
 		(uint64_t) st->st_mtim.tv_sec
 #endif
 		);

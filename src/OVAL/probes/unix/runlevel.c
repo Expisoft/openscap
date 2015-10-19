@@ -352,6 +352,11 @@ static int get_runlevel (struct runlevel_req *req, struct runlevel_rep **rep)
         _A(rep != NULL);
         return (-1);
 }
+#elif defined(__CYGWIN__)
+static int get_runlevel (struct runlevel_req *req, struct runlevel_rep **rep)
+{
+        return (-1);
+}
 #else
 # error "Sorry, your OS isn't supported."
 #endif

@@ -67,10 +67,13 @@ void SEXP_free_r (SEXP_t *s_exp);
 #include <stdint.h>
 void __SEXP_free_r(SEXP_t *s_exp, const char *file, uint32_t line, const char *func);
 
+#if defined(OVAL_PROBES_ENABLED)
+
 __attribute__ ((unused)) static void SEXP_free_r(SEXP_t *sexp)
 {
         __SEXP_free_r(sexp, __FILE__, __LINE__, __PRETTY_FUNCTION__);
 }
+#endif
 
 #define SEXP_free_r(ptr) __SEXP_free_r(ptr, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 

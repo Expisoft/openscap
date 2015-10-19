@@ -69,7 +69,7 @@
 # else
 #  define OS_SUNOS
 # endif
-#elif defined(_WIN32)
+#elif defined(_WIN32) || defined(__CYGWIN__)
 # define OS_WINDOWS
 #else
 # error "Sorry, your OS isn't supported."

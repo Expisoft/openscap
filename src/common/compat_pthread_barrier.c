@@ -26,7 +26,7 @@
 
 #include "compat_pthread_barrier.h"
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__CYGWIN__)
 
 #include <errno.h>
 
@@ -84,6 +84,16 @@ int pthread_barrier_wait(pthread_barrier_t *barrier)
 
         return 0;
     }
+}
+
+#endif
+
+
+#if defined(__CYGWIN__)
+
+int pthread_setname_np(pthread_t thread, const char *name)
+{
+  return 0;
 }
 
 #endif

@@ -261,6 +261,8 @@ probe_systemdunitdependency_req_deps_ok=yes
 probe_systemdunitdependency_req_deps_missing=
 probe_systemdunitdependency_opt_deps_ok=yes
 probe_systemdunitdependency_opt_deps_missing=
+probe_registry_req_deps_ok=yes
+probe_registry_req_deps_missing=
 
 #
 # env
@@ -674,6 +676,10 @@ AC_CHECK_HEADERS([dbus/dbus.h string.h ],[],[probe_systemdunitproperty_req_deps_
 echo
 echo ' * Checking presence of required headers for the systemdunitdependency probe'
 AC_CHECK_HEADERS([dbus/dbus.h string.h ],[],[probe_systemdunitdependency_req_deps_ok=no; probe_systemdunitdependency_req_deps_missing='header files'],[-])
+
+echo
+echo ' * Checking presence of required headers for the registry probe'
+AC_CHECK_HEADERS([string.h ],[],[probe_registry_req_deps_ok=no; probe_registry_req_deps_missing='header files'],[-])
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 
@@ -1113,6 +1119,17 @@ AC_ARG_ENABLE([probes-solaris],
      esac],)
 fi # probes = yes
 
+AC_ARG_ENABLE([probes-windows],
+     [AC_HELP_STRING([--enable-probes-windows], [enable compilation of probes for WINDOWS based systems (default=yes)])],
+     [case "${enableval}" in
+       yes) probes_windows=yes ;;
+       no)  probes_windows=no  ;;
+       *) AC_MSG_ERROR([bad value ${enableval} for --enable-probes-windows]) ;;
+     esac],[probes_windows=yes])
+if test "x${probes_windows}" = xyes; then
+	AC_DEFINE([PLATFORM_WINDOWS], [1], [Indicator for a Windows type OS])
+fi
+
 AC_ARG_ENABLE([cce],
      [AC_HELP_STRING([--enable-cce], [include support for CCE (default=no)])],
      [case "${enableval}" in
@@ -1418,12 +1435,16 @@ probe_systemdunitproperty_enabled=$probe_systemdunitproperty_req_deps_ok
 AM_CONDITIONAL([probe_systemdunitdependency_enabled], test "$probe_systemdunitdependency_req_deps_ok" = yes)
 probe_systemdunitdependency_enabled=$probe_systemdunitdependency_req_deps_ok
 
+AM_CONDITIONAL([probe_registry_enabled], test "$probe_registry_req_deps_ok" = yes)
+probe_regsitry_enabled=$probe_registry_req_deps_ok
+
 AM_CONDITIONAL([WANT_CCE],  test "$cce"  = yes)
 AM_CONDITIONAL([WANT_PROBES], test "$probes" = yes)
 AM_CONDITIONAL([WANT_PROBES_INDEPENDENT], test "$probes_independent" = yes)
 AM_CONDITIONAL([WANT_PROBES_UNIX], test "$probes_unix" = yes)
 AM_CONDITIONAL([WANT_PROBES_LINUX], test "$probes_linux" = yes)
 AM_CONDITIONAL([WANT_PROBES_SOLARIS], test "$probes_solaris" = yes)
+AM_CONDITIONAL([WANT_PROBES_WINDOWS], test "$probes_windows" = yes)
 
 AM_CONDITIONAL([WANT_SCE], test "$sce" = yes)
 AM_CONDITIONAL([WANT_UTIL_OSCAP], test "$util_oscap" = yes)
