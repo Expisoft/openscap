@@ -311,4 +311,28 @@ pkglibexec_PROGRAMS += probe_registry
 probe_registry_SOURCES= windows/registry.c
 endif
 
+if probe_wmi_enabled
+pkglibexec_PROGRAMS += probe_wmi
+probe_wmi_SOURCES= windows/wmi.c
+probe_wmi_LDFLAGS= -lole32 -lwbemuuid -loleaut32
+endif
+
+if probe_wmi57_enabled
+pkglibexec_PROGRAMS += probe_wmi57
+probe_wmi57_SOURCES= windows/wmi57.c
+probe_wmi57_LDFLAGS= -lole32 -lwbemuuid -loleaut32
+endif
+
+if probe_lockoutpolicy_enabled
+pkglibexec_PROGRAMS += probe_lockoutpolicy
+probe_lockoutpolicy_SOURCES= windows/lockoutpolicy.c
+probe_lockoutpolicy_LDFLAGS= -lnetapi32
+endif
+
+if probe_accesstoken_enabled
+pkglibexec_PROGRAMS += probe_accesstoken
+probe_accesstoken_SOURCES= windows/accesstoken.c
+probe_accesstoken_LDFLAGS= -lnetapi32
+endif
+
 endif

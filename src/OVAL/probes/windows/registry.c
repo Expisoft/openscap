@@ -202,10 +202,30 @@ int probe_main(probe_ctx *ctx, void *arg)
 
 	switch(type) {
 	case REG_SZ:
+		ent = probe_item_create(OVAL_WINDOWS_REGISTRY, NULL,
+			"type",OVAL_DATATYPE_STRING,"reg_sz",
+			"value", OVAL_DATATYPE_STRING,data,NULL);
+		break;
 	case REG_MULTI_SZ:
+		ent = probe_item_create(OVAL_WINDOWS_REGISTRY, NULL,
+			"datatype",OVAL_DATATYPE_STRING,"reg_multi_sz",
+			NULL);
+
+		data_str  = data;
+		while(*data_str ) {
+			SEXP_t	ti;
+
+			probe_item_ent_add(ent,"value", NULL,SEXP_string_new_r(&ti,data_str,strlen(data_str)));
+
+			while(*data_str ) data_str++;
+
+			data_str ++;
+		}
+
+		break;
 	case REG_EXPAND_SZ:
 		ent = probe_item_create(OVAL_WINDOWS_REGISTRY, NULL,
-			"type",OVAL_DATATYPE_STRING,"string",
+			"type",OVAL_DATATYPE_STRING,"reg_expand_sz",
 			"value", OVAL_DATATYPE_STRING,data,NULL);
 		break;
 	case REG_BINARY:
@@ -215,7 +235,7 @@ int probe_main(probe_ctx *ctx, void *arg)
 		mem2hex(data,len,data_str,2*len+1);
 
 		ent = probe_item_create(OVAL_WINDOWS_REGISTRY, NULL,
-			"datatype",OVAL_DATATYPE_STRING,"binary",
+			"type",OVAL_DATATYPE_STRING,"reg_binary",
 			"value", OVAL_DATATYPE_STRING,data_str,NULL);
 
 		break;

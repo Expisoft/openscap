@@ -263,6 +263,15 @@ probe_systemdunitdependency_opt_deps_ok=yes
 probe_systemdunitdependency_opt_deps_missing=
 probe_registry_req_deps_ok=yes
 probe_registry_req_deps_missing=
+probe_wmi_req_deps_ok=yes
+probe_wmi_req_deps_missing=
+probe_wmi57_req_deps_ok=yes
+probe_wmi57_req_deps_missing=
+probe_lockoutpolicy_req_deps_ok=yes
+probe_lockoutpolicy_req_deps_missing=
+probe_accesstoken_req_deps_ok=yes
+probe_accesstoken_req_deps_missing=
+
 
 #
 # env
@@ -680,6 +689,22 @@ AC_CHECK_HEADERS([dbus/dbus.h string.h ],[],[probe_systemdunitdependency_req_dep
 echo
 echo ' * Checking presence of required headers for the registry probe'
 AC_CHECK_HEADERS([string.h ],[],[probe_registry_req_deps_ok=no; probe_registry_req_deps_missing='header files'],[-])
+
+echo
+echo ' * Checking presence of required headers for the wmi probe'
+AC_CHECK_HEADERS([string.h ],[],[probe_wmi_req_deps_ok=no; probe_wmi_req_deps_missing='header files'],[-])
+
+echo
+echo ' * Checking presence of required headers for the wmi57 probe'
+AC_CHECK_HEADERS([string.h ],[],[probe_wmi57_req_deps_ok=no; probe_wmi57_req_deps_missing='header files'],[-])
+
+echo
+echo ' * Checking presence of required headers for the lockoutpolicy probe'
+AC_CHECK_HEADERS([string.h ],[],[probe_lockoutpolicy_req_deps_ok=no; probe_lockoutpolicy_req_deps_missing='header files'],[-])
+
+echo
+echo ' * Checking presence of required headers for the accesstoken probe'
+AC_CHECK_HEADERS([string.h ],[],[probe_accesstoken_req_deps_ok=no; probe_accesstoken_req_deps_missing='header files'],[-])
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 
@@ -1436,7 +1461,17 @@ AM_CONDITIONAL([probe_systemdunitdependency_enabled], test "$probe_systemdunitde
 probe_systemdunitdependency_enabled=$probe_systemdunitdependency_req_deps_ok
 
 AM_CONDITIONAL([probe_registry_enabled], test "$probe_registry_req_deps_ok" = yes)
-probe_regsitry_enabled=$probe_registry_req_deps_ok
+probe_registry_enabled=$probe_registry_req_deps_ok
+AM_CONDITIONAL([probe_wmi_enabled], test "$probe_wmi_req_deps_ok" = yes)
+probe_wmi_enabled=$probe_wmi_req_deps_ok
+AM_CONDITIONAL([probe_wmi57_enabled], test "$probe_wmi57_req_deps_ok" = yes)
+probe_wmi57_enabled=$probe_wmi57_req_deps_ok
+AM_CONDITIONAL([probe_lockoutpolicy_enabled], test "$probe_lockoutpolicy_req_deps_ok" = yes)
+probe_lockoutpolicy_enabled=$probe_lockoutpolicy_req_deps_ok
+AM_CONDITIONAL([probe_accesstoken_enabled], test "$probe_accesstoken_req_deps_ok" = yes)
+probe_accesstoken_enabled=$probe_accesstoken_req_deps_ok
+
+
 
 AM_CONDITIONAL([WANT_CCE],  test "$cce"  = yes)
 AM_CONDITIONAL([WANT_PROBES], test "$probes" = yes)
