@@ -84,27 +84,15 @@ int probe_main(probe_ctx *ctx, void *arg)
 		return (PROBE_ENOVAL);
 	}
 
-	dI("lockoutpolicy: %d %d %d %d\n",pModal0->usrmod0_force_logoff,pModal3->usrmod3_lockout_duration,pModal3->usrmod3_lockout_observation_window,pModal3->usrmod3_lockout_threshold);
+	dI("%d %d %d %d\n",pModal0->usrmod0_force_logoff,pModal3->usrmod3_lockout_duration,pModal3->usrmod3_lockout_observation_window,pModal3->usrmod3_lockout_threshold);
 
 	/*
      * Create the result node
 	 */
 	ent = probe_item_create(OVAL_WINDOWS_LOCKOUT_POLICY, NULL,
 		"force_logoff",OVAL_DATATYPE_INTEGER,(uint64_t)pModal0->usrmod0_force_logoff,
-		NULL);
-	probe_item_collect(ctx, ent);
-
-	ent = probe_item_create(OVAL_WINDOWS_LOCKOUT_POLICY, NULL,
 		"lockout_duration",OVAL_DATATYPE_INTEGER,(uint64_t)pModal3->usrmod3_lockout_duration,
-		NULL);
-	probe_item_collect(ctx, ent);
-
-	ent = probe_item_create(OVAL_WINDOWS_LOCKOUT_POLICY, NULL,
 		"lockout_observation_window",OVAL_DATATYPE_INTEGER,(uint64_t)pModal3->usrmod3_lockout_observation_window,
-		NULL);
-	probe_item_collect(ctx, ent);
-
-	ent = probe_item_create(OVAL_WINDOWS_LOCKOUT_POLICY, NULL,
 		"lockout_threshold",OVAL_DATATYPE_INTEGER,(int64_t)pModal3->usrmod3_lockout_threshold,
 		NULL);
 	probe_item_collect(ctx, ent);

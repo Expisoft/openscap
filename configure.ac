@@ -271,6 +271,17 @@ probe_lockoutpolicy_req_deps_ok=yes
 probe_lockoutpolicy_req_deps_missing=
 probe_accesstoken_req_deps_ok=yes
 probe_accesstoken_req_deps_missing=
+probe_passwordpolicy_req_deps_ok=yes
+probe_passwordpolicy_req_deps_missing=
+probe_user_req_deps_ok=yes
+probe_user_req_deps_missing=
+probe_sid_req_deps_ok=yes
+probe_sid_req_deps_missing=
+probe_auditeventpolicy_req_deps_ok=yes
+probe_auditeventpolicy_req_deps_missing=
+probe_auditeventpolicysubcategories_req_deps_ok=yes
+probe_auditeventpolicysubcategories_req_deps_missing=
+
 
 
 #
@@ -705,6 +716,26 @@ AC_CHECK_HEADERS([string.h ],[],[probe_lockoutpolicy_req_deps_ok=no; probe_locko
 echo
 echo ' * Checking presence of required headers for the accesstoken probe'
 AC_CHECK_HEADERS([string.h ],[],[probe_accesstoken_req_deps_ok=no; probe_accesstoken_req_deps_missing='header files'],[-])
+
+echo
+echo ' * Checking presence of required headers for the passwordpolicy probe'
+AC_CHECK_HEADERS([string.h ],[],[probe_passwordpolicy_req_deps_ok=no; probe_passwordpolicy_req_deps_missing='header files'],[-])
+
+echo
+echo ' * Checking presence of required headers for the user probe'
+AC_CHECK_HEADERS([string.h ],[],[probe_user_req_deps_ok=no; probe_user_req_deps_missing='header files'],[-])
+
+echo
+echo ' * Checking presence of required headers for the sid probe'
+AC_CHECK_HEADERS([string.h ],[],[probe_sid_req_deps_ok=no; probe_sid_req_deps_missing='header files'],[-])
+
+echo
+echo ' * Checking presence of required headers for the auditeventpolicy probe'
+AC_CHECK_HEADERS([string.h ],[],[probe_auditeventpolicy_req_deps_ok=no; probe_auditeventpolicy_req_deps_missing='header files'],[-])
+
+echo
+echo ' * Checking presence of required headers for the auditeventpolicysubcategories probe'
+AC_CHECK_HEADERS([string.h ],[],[probe_auditeventpolicysubcategories_req_deps_ok=no; probe_auditeventpolicysubcategories_req_deps_missing='header files'],[-])
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 
@@ -1470,6 +1501,16 @@ AM_CONDITIONAL([probe_lockoutpolicy_enabled], test "$probe_lockoutpolicy_req_dep
 probe_lockoutpolicy_enabled=$probe_lockoutpolicy_req_deps_ok
 AM_CONDITIONAL([probe_accesstoken_enabled], test "$probe_accesstoken_req_deps_ok" = yes)
 probe_accesstoken_enabled=$probe_accesstoken_req_deps_ok
+AM_CONDITIONAL([probe_passwordpolicy_enabled], test "$probe_passwordpolicy_req_deps_ok" = yes)
+probe_passwordpolicy_enabled=$probe_passwordpolicy_req_deps_ok
+AM_CONDITIONAL([probe_user_enabled], test "$probe_user_req_deps_ok" = yes)
+probe_user_enabled=$probe_passwordpolicy_req_deps_ok
+AM_CONDITIONAL([probe_sid_enabled], test "$probe_sid_req_deps_ok" = yes)
+probe_sid_enabled=$probe_passwordpolicy_req_deps_ok
+AM_CONDITIONAL([probe_auditeventpolicy_enabled], test "$probe_auditeventpolicy_req_deps_ok" = yes)
+probe_auditeventpolicy_enabled=$probe_passwordpolicy_req_deps_ok
+AM_CONDITIONAL([probe_auditeventpolicysubcategories_enabled], test "$probe_auditeventpolicysubcategories_req_deps_ok" = yes)
+probe_auditeventpolicysubcategories_enabled=$probe_passwordpolicy_req_deps_ok
 
 
 

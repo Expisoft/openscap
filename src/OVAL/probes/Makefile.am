@@ -335,4 +335,34 @@ probe_accesstoken_SOURCES= windows/accesstoken.c
 probe_accesstoken_LDFLAGS= -lnetapi32
 endif
 
+if probe_passwordpolicy_enabled
+pkglibexec_PROGRAMS += probe_passwordpolicy
+probe_passwordpolicy_SOURCES= windows/passwordpolicy.c
+probe_passwordpolicy_LDFLAGS= -lnetapi32
+endif
+
+if probe_user_enabled
+pkglibexec_PROGRAMS += probe_user
+probe_user_SOURCES= windows/user.c
+probe_user_LDFLAGS= -lnetapi32
+endif
+
+if probe_sid_enabled
+pkglibexec_PROGRAMS += probe_sid
+probe_sid_SOURCES= windows/sid.c
+probe_sid_LDFLAGS= -lnetapi32
+endif
+
+if probe_auditeventpolicy_enabled
+pkglibexec_PROGRAMS += probe_auditeventpolicy
+probe_auditeventpolicy_SOURCES= windows/auditeventpolicy.c
+probe_auditeventpolicy_LDFLAGS= -lnetapi32
+endif
+
+if probe_auditeventpolicysubcategories_enabled
+pkglibexec_PROGRAMS += probe_auditeventpolicysubcategories
+probe_auditeventpolicysubcategories_SOURCES= windows/auditeventpolicysubcategories.c
+probe_auditeventpolicysubcategories_LDFLAGS= -lnetapi32
+endif
+
 endif

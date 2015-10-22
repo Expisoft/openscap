@@ -1,10 +1,10 @@
 /**
- * @file   accesstoken.c
- * @brief  accesstoken probe
+ * @file   sid.c
+ * @brief  sid probe
  * @author "Stefan Gustafsson" <sg@expisoft.com>
  *
  * 2015/10/15 sg@expisoft.com
- *  This probe is able to process an accesstoken node as defined in OVAL 5.?.
+ *  This probe is able to process an sid_object as defined in OVAL 5.?.
  *
  */
 
@@ -46,7 +46,6 @@
 #include <fcntl.h>
 #include <sched.h>
 #include <time.h>
-#include <string.h>
 #include <wchar.h>
 #include <pcre.h>
 
@@ -66,23 +65,23 @@
 
 SEXP_t* trustees_from_sid(SEXP_t* list,const char* name);
 SEXP_t*	list_trustees(void);
-int		expand_principal(SEXP_t* list,const char* principal,bool include_group,bool resolve_group);
-int		collect_principal(probe_ctx* ctx,const char* principal);
+int		expand_trustee(SEXP_t* list,const char* trustee,bool include_group,bool resolve_group);
+int		collect_trustee(probe_ctx* ctx,const char* trustee);
 
 LPWSTR	g_pwszComputerName = NULL;
 
-int probe_main(probe_ctx* ctx, void *arg)
+int probe_main(probe_ctx *ctx, void *arg)
 {
 	SEXP_t*		probe_in;
-	SEXP_t*		principal_ent;
+	SEXP_t*		trustee_ent;
 	SEXP_t*		val;
 	SEXP_t*		behaviors;
-	char*		principal  = NULL;
-	int			principal_op = OVAL_OPERATION_EQUALS;
+	char*		trustee  = NULL;
+	int			trustee_op = OVAL_OPERATION_EQUALS;
 	bool		include_group = true;
 	bool		resolve_group = false;
 	int			rc;
-	SEXP_t*		principal_list;
+	SEXP_t*		trustee_list;
 	int			len,i;
 	DWORD		cbComputerName;
 
@@ -91,26 +90,26 @@ int probe_main(probe_ctx* ctx, void *arg)
 		return PROBE_ENOOBJ;
 	}
 
-	principal_ent = probe_obj_getent(probe_in, "security_principle", 1);
-	if (principal_ent == NULL) {
+	trustee_ent = probe_obj_getent(probe_in, "trustee_name", 1);
+	if (trustee_ent == NULL) {
 		return (PROBE_ENOENT);
 	}
 
-    val = probe_ent_getval(principal_ent);
+    val = probe_ent_getval(trustee_ent);
     if (val == NULL) {
-        dI("%s: no value\n", "security_principle");
-        SEXP_free(principal_ent);
+        dI("%s: no value\n", "trustee_name");
+        SEXP_free(trustee_ent);
         return (PROBE_ENOVAL);
     }
 
-    principal = SEXP_string_cstr(val);
+    trustee = SEXP_string_cstr(val);
     SEXP_free(val);
 
-	principal_op = probe_ent_getoperation(principal_ent,OVAL_OPERATION_EQUALS);
+	trustee_op = probe_ent_getoperation(trustee_ent,OVAL_OPERATION_EQUALS);
 
-	SEXP_free(principal_ent);
+	SEXP_free(trustee_ent);
 
-	if (principal_op != OVAL_OPERATION_EQUALS && principal_op != OVAL_OPERATION_PATTERN_MATCH) {
+	if (trustee_op != OVAL_OPERATION_EQUALS && trustee_op != OVAL_OPERATION_PATTERN_MATCH) {
 		dE("Invalid value of the `operation' attribute.\n");
         return (PROBE_EINVAL);
 	}
@@ -130,7 +129,7 @@ int probe_main(probe_ctx* ctx, void *arg)
 
 	}
 
-	dI("%s %s %s\n",principal,include_group?"true":"false",resolve_group?"true":"false");
+	dI("%s %s %s\n",trustee,include_group?"true":"false",resolve_group?"true":"false");
 
 	cbComputerName = 0;
 
@@ -139,17 +138,17 @@ int probe_main(probe_ctx* ctx, void *arg)
 	g_pwszComputerName = calloc(cbComputerName,sizeof(WCHAR));
 
 	if (!GetComputerNameExW(ComputerNamePhysicalDnsHostname,g_pwszComputerName,&cbComputerName)) {
-		dE("Invalid value of the `operation' attribute.\n");
+		dE("GetComputerNameEx failed\n");
         return (PROBE_EINVAL);
 	}
 
-	// Create the list of all principals we are collecting
-	principal_list = SEXP_list_new(NULL);
+	// Create the list of all trustee we are collecting
+	trustee_list = SEXP_list_new(NULL);
 
-	if (principal_op == OVAL_OPERATION_EQUALS) {
-		rc = expand_principal(principal_list,principal,include_group,resolve_group);		
+	if (trustee_op == OVAL_OPERATION_EQUALS) {
+		rc = expand_trustee(trustee_list,trustee,include_group,resolve_group);		
 		if (rc) {
-			oscap_free(principal);
+			oscap_free(trustee);
 			return rc;
 		}
 
@@ -158,12 +157,12 @@ int probe_main(probe_ctx* ctx, void *arg)
 		const char*	estr = NULL;
 		int			eoff = -1;
 
-		re = pcre_compile(principal, PCRE_UTF8, &estr, &eoff, NULL);
+		re = pcre_compile(trustee, PCRE_UTF8, &estr, &eoff, NULL);
 		if (re == NULL) {
 			return (PROBE_EINVAL);
 		}
 
-		/* List all the principals */
+		/* List all the trustees */
 		val = list_trustees();
 		if (val == NULL) {
 			return (PROBE_EINVAL);
@@ -175,7 +174,7 @@ int probe_main(probe_ctx* ctx, void *arg)
 		}
 
 		for(i=0;i<len;i++) {
-			char*	principal_item;
+			char*	trustee_item;
 			SEXP_t*	item;
 
 			item = SEXP_list_nth(val,i+1);
@@ -183,43 +182,43 @@ int probe_main(probe_ctx* ctx, void *arg)
 				continue;
 			}
 
-			principal_item = SEXP_string_cstr(item);
+			trustee_item = SEXP_string_cstr(item);
 			SEXP_free(item);
 
-			rc = pcre_exec(re, NULL,principal_item,strlen(principal_item), 0, 0, NULL, 0);
+			rc = pcre_exec(re, NULL,trustee_item,strlen(trustee_item), 0, 0, NULL, 0);
 			if (rc == 0) {
-				// Expand this principal, ignoring error
-				expand_principal(principal_list,principal_item,include_group,resolve_group);
+				// Expand this trustee, ignoring error
+				expand_trustee(trustee_list,trustee_item,include_group,resolve_group);
 			}
 
-			oscap_free(principal_item);
+			oscap_free(trustee_item);
 		}
 	}
 
-	/* Now collect the resulting list of principals */
-	len = SEXP_list_length(principal_list);
+	/* Now collect the resulting list of trustees */
+	len = SEXP_list_length(trustee_list);
 	if (len == -1) {
 		return (PROBE_EINVAL);
 	}
 
 	for(i=0;i<len;i++) {
-		char*	principal_item;
+		char*	trustee_item;
 		SEXP_t*	item;
 
-		item = SEXP_list_nth(principal_list,i+1);
+		item = SEXP_list_nth(trustee_list,i+1);
 		if (item == NULL) {
 			continue;
 		}
 
-		principal_item = SEXP_string_cstr(item);
+		trustee_item = SEXP_string_cstr(item);
 		SEXP_free(item);
 
-		collect_principal(ctx,principal_item);
+		collect_trustee(ctx,trustee_item);
 
-		oscap_free(principal_item);
+		oscap_free(trustee_item);
 	}
 
-	oscap_free(principal);
+	oscap_free(trustee);
 
 	return 0;
 }
@@ -245,7 +244,7 @@ SEXP_t* trustees_from_sid(SEXP_t* list,const char* name) {
 	pDomainName = calloc(1,cbDomainName);
 
 	if (!LookupAccountSidA(NULL,pSid,pAccountName,&cbAccountName,pDomainName,&cbDomainName,&type)) {
-		dE("LookupAccountSidA failed %d\n",GetLastError());
+		dE("LookupAccountSidA failed %d %s\n",GetLastError(),name);
 		return NULL;
 	}
 
@@ -319,7 +318,8 @@ SEXP_t*	list_trustees() {
 		for (i=0; i<nRecords; i++) {
 			SEXP_t	tmp;
 
-			SEXP_list_add(list,SEXP_string_newf_r(&tmp,"%ls\\%ls",g_pwszComputerName,pInfo0[i].usri0_name));
+//			SEXP_list_add(list,SEXP_string_newf_r(&tmp,"%ls\\%ls",g_pwszComputerName,pInfo0[i].usri0_name));
+			SEXP_list_add(list,SEXP_string_newf_r(&tmp,"%ls",pInfo0[i].usri0_name));
 		}
 
 		NetApiBufferFree(pInfo0);
@@ -389,7 +389,7 @@ SEXP_t*	list_trustees() {
 	return list;
 }
 
-int expand_principal(SEXP_t* list,const char* principal,bool include_group,bool resolve_group) {
+int expand_trustee(SEXP_t* list,const char* trustee,bool include_group,bool resolve_group) {
 	PSID					pSid;
 	DWORD					cbSid = 0;
 	LPSTR					pDomainName;
@@ -399,15 +399,15 @@ int expand_principal(SEXP_t* list,const char* principal,bool include_group,bool 
 	bool					bGroup = false;
 	SEXP_t					tmp;
 
-	LookupAccountName(NULL,principal,NULL,&cbSid,NULL,&cbDomainName,&type);
+	LookupAccountName(NULL,trustee,NULL,&cbSid,NULL,&cbDomainName,&type);
 
 	pSid = calloc(1,cbSid);
 
 	cbDomainName++;
 	pDomainName = calloc(1,cbDomainName);
 
-	if (!LookupAccountName(NULL,principal,pSid,&cbSid,pDomainName,&cbDomainName,&type)) {
-		dE("LookupAccountName %s failed %d\n",principal,GetLastError());
+	if (!LookupAccountName(NULL,trustee,pSid,&cbSid,pDomainName,&cbDomainName,&type)) {
+		dE("LookupAccountName %s failed %d\n",trustee,GetLastError());
 		return (PROBE_EINVAL);
 	}
 
@@ -432,28 +432,28 @@ int expand_principal(SEXP_t* list,const char* principal,bool include_group,bool 
 		DWORD						nTotal = 0;
 		LOCALGROUP_MEMBERS_INFO_2*	pMemberInfo2 = NULL;
 		DWORD						hResume = 0;
-		WCHAR						wzPrincipal[514];
+		WCHAR						wzTrustee[514];
 		ULONG						i;
 
-		swprintf(wzPrincipal,514,L"%s",principal);
+		swprintf(wzTrustee,514,L"%s",trustee);
 
 		for(;;) {
 			
-			rc = NetLocalGroupGetMembers(NULL,wzPrincipal,2,(LPBYTE*)&pMemberInfo2,MAX_PREFERRED_LENGTH,&nRecords,&nTotal,&hResume);
+			rc = NetLocalGroupGetMembers(NULL,wzTrustee,2,(LPBYTE*)&pMemberInfo2,MAX_PREFERRED_LENGTH,&nRecords,&nTotal,&hResume);
 			if ((rc != NERR_Success) && (rc != ERROR_MORE_DATA)) {
 				break;
 			}
 
 			for (i=0; i<nRecords; i++) {
-				char*	member_principal;
+				char*	member_trustee;
 
 				SEXP_string_newf_r(&tmp,"%ls",pMemberInfo2[i].lgrmi2_domainandname);
 
-				member_principal = SEXP_string_cstr(&tmp);
+				member_trustee = SEXP_string_cstr(&tmp);
 
-				expand_principal(list,member_principal,include_group,resolve_group);
+				expand_trustee(list,member_trustee,include_group,resolve_group);
 
-				oscap_free(member_principal);
+				oscap_free(member_trustee);
 			}
 
 			NetApiBufferFree(pMemberInfo2);
@@ -468,131 +468,45 @@ int expand_principal(SEXP_t* list,const char* principal,bool include_group,bool 
 		return 0;
 	}
 
-	SEXP_list_add(list,SEXP_string_newf_r(&tmp,"%s",principal));
+	SEXP_list_add(list,SEXP_string_newf_r(&tmp,"%s",trustee));
 
 	return 0;
 }
 
-struct priv_node {
-	const char*	name;
-	bool		value;
-};
-
-int collect_principal(probe_ctx* ctx,const char* principal) {
+int collect_trustee(probe_ctx* ctx,const char* trustee) {
 	PSID					pSid;
 	DWORD					cbSid = 0;
 	LPSTR					pDomainName;
 	DWORD					cbDomainName = 0;
 	SID_NAME_USE			type;
-	LSA_HANDLE				hPolicy;
-	LSA_OBJECT_ATTRIBUTES	oa;
-	NTSTATUS				rc;
-	PLSA_UNICODE_STRING		pUserRights = NULL;
-	ULONG					nUserRights = 0;
 	SEXP_t*					item;
-	ULONG					i,p;
-	struct priv_node		priviledge_list[] = {
-		{"seassignprimarytokenprivilege",false},
-		{"seauditprivilege",false},
-		{"sebackupprivilege",false},
-		{"sechangenotifyprivilege",false},
-		{"secreateglobalprivilege",false},
-		{"secreatepagefileprivilege",false},
-		{"secreatepermanentprivilege",false},
-		{"secreatesymboliclinkprivilege",false},
-		{"secreatetokenprivilege",false},
-		{"sedebugprivilege",false},
-		{"seenabledelegationprivilege",false},
-		{"seimpersonateprivilege",false},
-		{"seincreasebasepriorityprivilege",false},
-		{"seincreasequotaprivilege",false},
-		{"seincreaseworkingsetprivilege",false},
-		{"seloaddriverprivilege",false},
-		{"selockmemoryprivilege",false},
-		{"semachineaccountprivilege",false},
-		{"semanagevolumeprivilege",false},
-		{"seprofilesingleprocessprivilege",false},
-		{"serelabelprivilege",false},
-		{"seremoteshutdownprivilege",false},
-		{"serestoreprivilege",false},
-		{"sesecurityprivilege",false},
-		{"seshutdownprivilege",false},
-		{"sesyncagentprivilege",false},
-		{"sesystemenvironmentprivilege",false},
-		{"sesystemprofileprivilege",false},
-		{"sesystemtimeprivilege",false},
-		{"setakeownershipprivilege",false},
-		{"setcbprivilege",false},
-		{"setimezoneprivilege",false},
-		{"seundockprivilege",false},
-		{"seunsolicitedinputprivilege",false},
-		{"sebatchlogonright",false},
-		{"seinteractivelogonright",false},
-		{"senetworklogonright",false},
-		{"seremoteinteractivelogonright",false},
-		{"seservicelogonright",false},
-		{"sedenybatchLogonright",false},
-		{"sedenyinteractivelogonright",false},
-		{"sedenynetworklogonright",false},
-		{"sedenyremoteInteractivelogonright",false},
-		{"sedenyservicelogonright",false},
-		{"setrustedcredmanaccessnameright",false},
-		{NULL,false}
-	};
+	LPSTR					pszSid;
 
-	LookupAccountName(NULL,principal,NULL,&cbSid,NULL,&cbDomainName,&type);
+	dI("collect_trustee %s\n",trustee);
+
+	LookupAccountName(NULL,trustee,NULL,&cbSid,NULL,&cbDomainName,&type);
 
 	pSid = calloc(1,cbSid);
 
 	cbDomainName++;
 	pDomainName = calloc(1,cbDomainName);
 
-	if (!LookupAccountName(NULL,principal,pSid,&cbSid,pDomainName,&cbDomainName,&type)) {
-		dE("LookupAccountName %s failed %d\n",principal,GetLastError());
+	if (!LookupAccountName(NULL,trustee,pSid,&cbSid,pDomainName,&cbDomainName,&type)) {
+		dE("LookupAccountName %s failed %d\n",trustee,GetLastError());
 		return (PROBE_EINVAL);
 	}
 
-	ZeroMemory(&oa, sizeof(oa));
+	ConvertSidToStringSid(pSid,&pszSid);
 
-	rc = LsaOpenPolicy(NULL, &oa, POLICY_LOOKUP_NAMES, &hPolicy);
-	if (rc) {
-		dE("LookupAccountName %s failed %d\n",principal,GetLastError());
-		return (PROBE_EINVAL);
-	}
-
-	rc = LsaEnumerateAccountRights(hPolicy, pSid, &pUserRights, &nUserRights);
-	if (rc != ERROR_SUCCESS) {
-		dE("LsaEnumerateAccountRights %s failed %x\n",principal,rc);
-		nUserRights = 0;
-	}
-
-	item = probe_item_create(OVAL_WINDOWS_ACCESS_TOKEN, NULL,
-		"security_principle",OVAL_DATATYPE_STRING,principal,
+	item = probe_item_create(OVAL_WINDOWS_SID, NULL,
+		"trustee_name",OVAL_DATATYPE_STRING,trustee,
+		"trustee_sid",OVAL_DATATYPE_STRING,pszSid,
+		"trustee_domain",OVAL_DATATYPE_STRING,pDomainName,
 		NULL);
-
-	for(i=0;i<nUserRights;i++) {
-		char	tmp[128];
-
-		sprintf(tmp,"%ls",pUserRights[i].Buffer);
-
-		for(p=0;priviledge_list[p].name;p++) {
-			if (strcasecmp(priviledge_list[p].name,tmp)==0) {
-				priviledge_list[p].value = 1;
-			}
-		}
-	}
-
-	for(p=0;priviledge_list[p].name;p++) {
-		SEXP_t	ti;
-
-		probe_item_ent_add(item,priviledge_list[p].name, NULL,SEXP_number_newi_r(&ti,priviledge_list[p].value));
-	} 
 
 	probe_item_collect(ctx, item);
 
-	LsaClose(hPolicy);
-
+	LocalFree(pszSid);
+	
 	return (0);
 }
-
-

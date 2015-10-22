@@ -1,6 +1,6 @@
 /**
- * @file   wmi57.c
- * @brief  WMI 5.7 probe
+ * @file   wmi.c
+ * @brief  WMI probe
  * @author "Stefan Gustafsson" <sg@expisoft.com>
  *
  * 2015/10/19 sg@expisoft.com
@@ -336,6 +336,7 @@ int probe_main(probe_ctx *ctx, void *arg)
 		ent = probe_item_create(OVAL_WINDOWS_WMI, NULL,
 			"result",OVAL_DATATYPE_STRING,"",
 			NULL);
+		probe_item_setstatus(ent, SYSCHAR_STATUS_DOES_NOT_EXIST);
 		probe_item_collect(ctx, ent);
 	}
 
