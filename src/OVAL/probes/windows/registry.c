@@ -58,6 +58,13 @@
 
 #include <windows.h>
 
+#define DOWN	0
+#define UP		1
+
+int  collect_registry(probe_ctx *ctx,HKEY hHive,const char* key,const char* name);
+int  expand_registry(HKEY hHive,SEXP_t* list,const char* key,const char* name,int recurse_direction,int max_depth);		
+void split_reg(const char* reg_item,char** reg_key,char** reg_name);
+
 oval_schema_version_t over;
 
 // FROM filehash.c
@@ -87,16 +94,15 @@ int probe_main(probe_ctx *ctx, void *arg)
 	SEXP_t*		ent;
 	SEXP_t*		val;
 	char*		hive = NULL;
+	int			hive_op = OVAL_OPERATION_EQUALS;
 	char*		key = NULL;
+	int			key_op = OVAL_OPERATION_EQUALS;
 	char*		name = NULL;
+	int			name_op = OVAL_OPERATION_EQUALS;
 	HKEY		hHive;
-	HKEY		hKey;
-	LONG		lStatus;
-	DWORD		type;
-	DWORD		len;
-	void*		data = NULL;
-	char*		data_str = NULL;
-	char		data_buf[32];
+	int			rc;
+	SEXP_t*		registry_list;
+	int			len,i;
 
 	probe_in = probe_ctx_getobject(ctx);
 	if (probe_in == NULL) {
@@ -118,6 +124,9 @@ int probe_main(probe_ctx *ctx, void *arg)
     }
 
     hive = SEXP_string_cstr(val);
+
+	hive_op = probe_ent_getoperation(ent,OVAL_OPERATION_EQUALS);
+
     SEXP_free(val);
 	SEXP_free(ent);
 
@@ -136,6 +145,9 @@ int probe_main(probe_ctx *ctx, void *arg)
     }
 
     key = SEXP_string_cstr(val);
+
+	key_op = probe_ent_getoperation(ent,OVAL_OPERATION_EQUALS);
+
     SEXP_free(val);
     SEXP_free(ent);
 
@@ -152,7 +164,18 @@ int probe_main(probe_ctx *ctx, void *arg)
 	} else {
 		name = SEXP_string_cstr(val);
 		SEXP_free(val);
-		SEXP_free(ent);
+	}
+	
+	name_op = probe_ent_getoperation(ent,OVAL_OPERATION_EQUALS);
+
+	SEXP_free(ent);
+
+	if (hive_op != OVAL_OPERATION_EQUALS) {
+		dE("Unsupported hive operation\n");
+		oscap_free(hive);
+		oscap_free(key);
+		oscap_free(name);
+		return (PROBE_ENOVAL);
 	}
 
 	if (strcasecmp(hive,"HKEY_CLASSES_ROOT")==0) {
@@ -172,32 +195,149 @@ int probe_main(probe_ctx *ctx, void *arg)
 		return (PROBE_ENOVAL);
 	}
 
-	lStatus = RegOpenKeyEx(hHive,key,0,KEY_READ,&hKey);
-	if (lStatus != 0) {
-		type = REG_NONE;
-	} else {
+	if (key_op == OVAL_OPERATION_PATTERN_MATCH || name_op == OVAL_OPERATION_PATTERN_MATCH) {
+		SEXP_t*	behaviors;
+		int		max_depth = -1;
+		int		recurse_direction = DOWN;
 
-		lStatus = RegQueryValueEx(hKey,name,NULL,&type,NULL,&len);
-		if (lStatus != 0) {
-			type = REG_NONE;
-		} else {
-		
-			data = calloc(1,len+1);
-			if (data == NULL) {
-				oscap_free(hive);
-				oscap_free(key);
-				oscap_free(name);
-				return (PROBE_ENOVAL);
+		behaviors = probe_obj_getent(probe_in, "behaviors", 1);
+		if (behaviors) {
+
+			val = probe_ent_getattrval(behaviors, "recurse_direction");
+			if (val) {
+				if (SEXP_strcmp(val,"up")) {
+					recurse_direction  = UP;
+				} else if (SEXP_strcmp(val,"down")) {
+					recurse_direction  = DOWN;
+				} else {
+					dE("bad value for recurse_direction\n");
+					oscap_free(hive);
+					oscap_free(key);
+					oscap_free(name);
+					return (PROBE_ENOVAL);
+				}
 			}
 
-			lStatus = RegQueryValueEx(hKey,name,NULL,&type,data,&len);
-			if (lStatus != 0) {
-				oscap_free(hive);
-				oscap_free(key);
-				oscap_free(name);
-				return (PROBE_ENOVAL);
+			val = probe_ent_getattrval(behaviors, "max_depth");
+			if (val) {
+				max_depth = SEXP_number_getb(val);
 			}
 		}
+
+		registry_list = SEXP_list_new(NULL);
+
+		rc = expand_registry(hHive,registry_list,key,name,recurse_direction,max_depth);		
+		if (rc) {
+			oscap_free(hive);
+			oscap_free(key);
+			oscap_free(name);
+			return rc;
+		}
+
+		/* Now collect the resulting registry values */
+		len = SEXP_list_length(registry_list);
+		if (len == -1) {
+			return (PROBE_EINVAL);
+		}
+
+		for(i=0;i<len;i++) {
+			char*	reg_item;
+			SEXP_t*	item;
+			char*	reg_key;
+			char*	reg_name;
+
+			item = SEXP_list_nth(registry_list,i+1);
+			if (item == NULL) {
+				continue;
+			}
+
+			reg_item = SEXP_string_cstr(item);
+			SEXP_free(item);
+
+			split_reg(reg_item,&reg_key,&reg_name);
+
+			collect_registry(ctx,hHive,reg_key,reg_name);
+
+			free(reg_key);
+			free(reg_name);
+
+			oscap_free(reg_item);
+		}
+
+		SEXP_free(registry_list);
+
+	} else {
+		rc = collect_registry(ctx,hHive,key,name);
+		if (rc) {
+			oscap_free(hive);
+			oscap_free(key);
+			oscap_free(name);
+			return rc;
+		}
+	}
+
+	oscap_free(hive);
+	oscap_free(key);
+	oscap_free(name);
+
+	return 0;
+}
+
+int collect_registry(probe_ctx *ctx,HKEY hHive,const char* key,const char* name) {
+	HKEY		hKey;
+	LONG		lStatus;
+	DWORD		type;
+	DWORD		len = 0;
+	void*		data = NULL;
+	char*		data_str = NULL;
+	char		data_buf[32];
+	char*		data_val;
+	SEXP_t*		ent;
+
+	lStatus = RegOpenKeyEx(hHive,key,0,KEY_READ|KEY_WOW64_64KEY,&hKey);
+	if (lStatus != 0) {
+
+		ent = probe_item_create(
+				OVAL_WINDOWS_REGISTRY, NULL,
+				"type", OVAL_DATATYPE_STRING, "reg_none",
+				NULL
+		);
+
+		probe_item_setstatus(ent, SYSCHAR_STATUS_DOES_NOT_EXIST);
+		probe_item_add_msg(ent, OVAL_MESSAGE_LEVEL_ERROR,"RegOpenKeyEx %08x",lStatus);
+		
+		probe_item_collect(ctx, ent);
+
+		return(0);
+	} 
+
+	lStatus = RegQueryValueEx(hKey,name,NULL,&type,NULL,&len);
+	if (lStatus != 0) {
+		ent = probe_item_create(
+				OVAL_WINDOWS_REGISTRY, NULL,
+				"type", OVAL_DATATYPE_STRING, "reg_none",
+				"key", OVAL_DATATYPE_STRING, key,
+				"name", OVAL_DATATYPE_STRING, name,
+				NULL
+		);
+
+		probe_item_setstatus(ent, SYSCHAR_STATUS_DOES_NOT_EXIST);
+		probe_item_add_msg(ent, OVAL_MESSAGE_LEVEL_ERROR,"RegQueryValueEx %08x",lStatus);
+		
+		probe_item_collect(ctx, ent);
+
+		return(0);
+	} 
+
+	data = calloc(1,len+1);
+	if (data == NULL) {
+		return (PROBE_ENOVAL);
+	}
+
+	lStatus = RegQueryValueEx(hKey,name,NULL,&type,data,&len);
+	if (lStatus != 0) {
+		dE("RegQueryValueEx\n");
+		return (PROBE_ENOVAL);
 	}
 
 	switch(type) {
@@ -208,20 +348,21 @@ int probe_main(probe_ctx *ctx, void *arg)
 		break;
 	case REG_MULTI_SZ:
 		ent = probe_item_create(OVAL_WINDOWS_REGISTRY, NULL,
-			"datatype",OVAL_DATATYPE_STRING,"reg_multi_sz",
+			"type",OVAL_DATATYPE_STRING,"reg_multi_sz",
 			NULL);
 
-		data_str  = data;
-		while(*data_str ) {
+		data_val = data;
+		if (!*data_val) {
 			SEXP_t	ti;
 
-			probe_item_ent_add(ent,"value", NULL,SEXP_string_new_r(&ti,data_str,strlen(data_str)));
+			probe_item_ent_add(ent,"value", NULL,SEXP_string_new_r(&ti,"",0));
+		} else {
+			for (; *data_val; data_val += strlen(data_val) + 1) {
+				SEXP_t	ti;
 
-			while(*data_str ) data_str++;
-
-			data_str ++;
+				probe_item_ent_add(ent,"value", NULL,SEXP_string_new_r(&ti,data_val,strlen(data_val)));
+			}
 		}
-
 		break;
 	case REG_EXPAND_SZ:
 		ent = probe_item_create(OVAL_WINDOWS_REGISTRY, NULL,
@@ -255,24 +396,35 @@ int probe_main(probe_ctx *ctx, void *arg)
 		break;
 	case REG_NONE:
 		ent = probe_item_create(OVAL_WINDOWS_REGISTRY, NULL,
-			"type",OVAL_DATATYPE_STRING,"none",
+			"type",OVAL_DATATYPE_STRING,"reg_none",
 			NULL);
 		break;
 	default:
 		free(data);
-		oscap_free(hive);
-		oscap_free(key);
-		oscap_free(name);
 		return (PROBE_ENOVAL);
 	}
 
 	free(data);
 	free(data_str);
-	oscap_free(hive);
-	oscap_free(key);
-	oscap_free(name);
 
 	probe_item_collect(ctx, ent);
 
+	return 0;
+}
+
+void split_reg(const char* reg_item,char** reg_key,char** reg_name) {
+	char*	p;
+
+	p = strchr(reg_item,':');
+	if (p == NULL) {
+		*reg_key = strdup(reg_item);
+		*reg_name = NULL;
+	} else {
+		*reg_key = strndup(reg_item,p-reg_item);
+		*reg_name = strdup(p+1);
+	}
+}
+
+int expand_registry(HKEY hHive,SEXP_t* list,const char* key,const char* name,int recurse_direction,int max_depth) {
 	return 0;
 }
